@@ -94,8 +94,8 @@ func (s *ssProvider) Get(c, u string) (string, error) {
 	method := fmt.Sprint(ssCollectionIface, "SearchItems")
 	call := collection.Call(method, 0, search)
 	err = call.Store(&results)
-	if call.Err != nil {
-		return "", call.Err
+	if err != nil {
+		return "", err 
 	}
 	// results is a slice. Just grab the first one.
 	if len(results) == 0 {
@@ -143,7 +143,7 @@ func (s *ssProvider) Set(c, u, p string) error {
 func init() {
 	conn, err := dbus.SessionBus()
 	if err != nil {
-		providerInitError = fmt.Errorf("keyring/dbus: Error connecting to dbus session, not registering SecretService provider")
+		providerInitError = fmt.Errorf("keyring/dbus: Error connecting to dbus session, not registering SecretService provider: %v", err)
 		return
 	}
 	srv := conn.Object(ssServiceName, ssServicePath)
