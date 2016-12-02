@@ -4,13 +4,13 @@ package keyring
 
 import (
 	"fmt"
-	dbus "github.com/guelfey/go.dbus"
+	dbus "github.com/gilbertchen/go.dbus"
 )
 
 const (
 	ssServiceName     = "org.freedesktop.secrets"
 	ssServicePath     = "/org/freedesktop/secrets"
-	ssCollectionPath  = "/org/freedesktop/secrets/collection/Default"
+	ssCollectionPath  = "/org/freedesktop/secrets/aliases/default"
 	ssServiceIface    = "org.freedesktop.Secret.Service."
 	ssSessionIface    = "org.freedesktop.Secret.Session."
 	ssCollectionIface = "org.freedesktop.Secret.Collection."
@@ -76,7 +76,8 @@ func (s *ssProvider) unlock(p dbus.ObjectPath) error {
 }
 
 func (s *ssProvider) Get(c, u string) (string, error) {
-	results := []dbus.ObjectPath{}
+	locked := []dbus.ObjectPath{}
+	unlocked := []dbus.ObjectPath{}
 	var secret ssSecret
 	search := map[string]string{
 		"username": u,
@@ -93,17 +94,28 @@ func (s *ssProvider) Get(c, u string) (string, error) {
 
 	method := fmt.Sprint(ssCollectionIface, "SearchItems")
 	call := collection.Call(method, 0, search)
-	err = call.Store(&results)
+	err = call.Store(&unlocked, &locked)
 	if err != nil {
 		return "", err 
 	}
 	// results is a slice. Just grab the first one.
-	if len(results) == 0 {
+	if len(unlocked) == 0  && len(locked) == 0 {
 		return "", ErrNotFound
 	}
 
+        var path dbus.ObjectPath
+        if len(unlocked) > 0 {
+                path = unlocked[0]
+        } else {
+                path = locked[0]
+                err = s.unlock(path)
+                if err != nil {
+                    return "", err
+                }
+        }
+ 
 	method = fmt.Sprint(ssItemIface, "GetSecret")
-	err = s.Object(ssServiceName, results[0]).Call(method, 0, session.Path()).Store(&secret)
+	err = s.Object(ssServiceName, path).Call(method, 0, session.Path()).Store(&secret)
 	if err != nil {
 		return "", err
 	}
