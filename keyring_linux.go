@@ -94,7 +94,14 @@ func (s *ssProvider) Get(c, u string) (string, error) {
 
 	method := fmt.Sprint(ssCollectionIface, "SearchItems")
 	call := collection.Call(method, 0, search)
-	err = call.Store(&unlocked, &locked)
+        if len(call.Body) != 1 && len(call.Body) != 2 {
+            return "", fmt.Errorf("SearchItems returned %d collections\n", len(call.Args))
+        }
+        if len(call.Body) == 1 {
+	    err = call.Store(&unlocked)
+        } else {
+  	    err = call.Store(&unlocked, &locked)
+        }
 	if err != nil {
 		return "", err 
 	}
